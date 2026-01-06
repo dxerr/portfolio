@@ -1,0 +1,24 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "Advanced Melee Trace",
+	"Description": "Advanced Melee Trace System for precise hit detection",
+	"Category": "Combat",
+	"CreatedBy": "User",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"CanContainContent": true,
+	"IsBetaVersion": false,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "AdvancedMeleeTrace",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	]
+}

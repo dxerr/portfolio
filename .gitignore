@@ -1,0 +1,54 @@
+# Visual Studio & IDE
+.vs/
+*.sln
+*.suo
+*.opensdf
+*.sdf
+*.vcxproj
+*.vcxproj.filters
+.vscode/
+*.code-workspace
+
+# Build Artifacts
+Binaries/
+Intermediate/
+DerivedDataCache/
+Saved/
+Build/
+
+# Temporary Files
+*.log
+*.obj
+*.o
+*.pch
+*.gch
+*~
+*.bak
+
+# Packaging
+Stage/
+ArchivedBuilds/
+
+# System
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+# Unreal Engine Assets (Binary) - Exclude to keep repo small
+# 소스 코드 및 설정 파일만 커밋하기 위해 바이너리 에셋 제외
+*.uasset
+*.umap
+
+# Optional: Ignore RawContent if exists
+RawContent/
+
+# Ensure Config and Source are kept
+!Config/
+!Source/
+!*.uproject
+!*.uplugin
+!*.ini
+!*.cpp
+!*.h
+!*.cs
