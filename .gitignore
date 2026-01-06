@@ -52,3 +52,15 @@ RawContent/
 !*.cpp
 !*.h
 !*.cs
+
+# -------------------------------------------------------------------------
+# TestPlay Plugin Asset Exception Rules
+# -------------------------------------------------------------------------
+
+# 1. Allow TestPlay Content Assets (Exception to *.uasset/*.umap ignore)
+!Plugins/GameFeatures/TestPlay/Content/**/*.uasset
+!Plugins/GameFeatures/TestPlay/Content/**/*.umap
+
+# 2. Exclude Specific Folders within TestPlay Content
+Plugins/GameFeatures/TestPlay/Content/NonCommit/
+Plugins/GameFeatures/TestPlay/Content/Map/
