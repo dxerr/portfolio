@@ -58,9 +58,13 @@ RawContent/
 # -------------------------------------------------------------------------
 
 # 1. Allow TestPlay Content Assets (Exception to *.uasset/*.umap ignore)
+!Plugins/GameFeatures/TestPlay/Content/*.uasset
+!Plugins/GameFeatures/TestPlay/Content/*.umap
 !Plugins/GameFeatures/TestPlay/Content/**/*.uasset
 !Plugins/GameFeatures/TestPlay/Content/**/*.umap
 
 # 2. Exclude Specific Folders within TestPlay Content
 Plugins/GameFeatures/TestPlay/Content/NonCommit/
 Plugins/GameFeatures/TestPlay/Content/Map/
+Plugins/GameFeatures/TestPlay/Content/__ExternalActors__/
+Plugins/GameFeatures/TestPlay/Content/__ExternalObjects__/
