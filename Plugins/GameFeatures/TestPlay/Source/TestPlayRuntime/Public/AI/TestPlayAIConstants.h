@@ -21,6 +21,9 @@ namespace TestPlayAIKeys
     
     // 이동 목표 위치 (Vector)
     static const FName MoveGoal = FName("MoveGoal");
+
+    // 목표 골 반경
+    static const FName GoalRadius = FName("GoalRadius");
 }
 
 /**
