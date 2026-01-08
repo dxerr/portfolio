@@ -80,13 +80,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Melee Trace")
 	bool bProcessMultiHit = true;
 
-	/** 검 길이 방향(StartSocket -> EndSocket)의 트레이스 분할 개수 (Deprecated: Box Sweep 사용으로 인해 미사용) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Melee Trace|Optimization", meta = (ClampMin = "1", DeprecatedProperty, DeprecationMessage="No longer used with Box Sweep logic"))
-	int32 TraceResolutionLength = 3;
-
-	/** 검 너비 방향(Radius)의 트레이스 분할 개수 (Deprecated: Box Sweep 사용으로 인해 미사용) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Melee Trace|Optimization", meta = (ClampMin = "1", DeprecatedProperty, DeprecationMessage="No longer used with Box Sweep logic"))
-	int32 TraceResolutionWidth = 2;
+	// TraceResolutionLength, TraceResolutionWidth 제거됨 (Box Sweep 도입으로 미사용)
 
 protected:
 	UPROPERTY()

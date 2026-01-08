@@ -360,6 +360,22 @@ void UAdvancedMeleeTraceComponent::ServerValidateHit_Implementation(AActor* HitA
 
 bool UAdvancedMeleeTraceComponent::ServerValidateHit_Validate(AActor* HitActor, const FHitResult& HitResult)
 {
+    if (!HitActor) return false;
+    
+    AActor* Owner = GetOwner();
+    if (!Owner) return false;
+
+    // 거리 검증: 최대 공격 사거리 + 여유분 (5m = 500 units)
+    constexpr float MaxValidDistance = 500.0f;
+    float DistanceSq = FVector::DistSquared(Owner->GetActorLocation(), HitActor->GetActorLocation());
+    
+    if (DistanceSq > FMath::Square(MaxValidDistance))
+    {
+        UE_LOG(LogAdvancedMeleeTrace, Warning, TEXT("ServerValidateHit rejected: Target too far (%.1f > %.1f)"), 
+            FMath::Sqrt(DistanceSq), MaxValidDistance);
+        return false;
+    }
+    
     return true;
 }
 

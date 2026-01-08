@@ -9,6 +9,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/PlayerState.h"
 #include "Engine/World.h"
+#include "Engine/OverlapResult.h"
 
 UBTS_TestPlayFindEnemy::UBTS_TestPlayFindEnemy()
 {
@@ -83,39 +84,55 @@ void UBTS_TestPlayFindEnemy::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* 
         }
     }
 
-    // 새로운 적 탐색
-    TArray<AActor*> FoundActors;
-    UGameplayStatics::GetAllActorsOfClass(MyPawn->GetWorld(), ALyraCharacter::StaticClass(), FoundActors);
+    	// 새로운 적 탐색 (Sphere Overlap으로 최적화 - GetAllActorsOfClass 대체)
+	TArray<FOverlapResult> Overlaps;
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(FindEnemy), false, MyPawn);
+	
+	GetWorld()->OverlapMultiByObjectType(
+		Overlaps,
+		MyPawn->GetActorLocation(),
+		FQuat::Identity,
+		FCollisionObjectQueryParams(ECC_Pawn),
+		FCollisionShape::MakeSphere(SearchRadius),
+		QueryParams
+	);
 
-    AActor* BestTarget = nullptr;
-    float BestDistSq = SearchRadius * SearchRadius;
+	AActor* BestTarget = nullptr;
+	float BestDistSq = SearchRadius * SearchRadius;
 
-    for (AActor* Actor : FoundActors)
-    {
-        if (Actor == MyPawn)
-        {
-            continue;
-        }
+	for (const FOverlapResult& Overlap : Overlaps)
+	{
+		AActor* Actor = Overlap.GetActor();
+		if (!Actor || Actor == MyPawn)
+		{
+			continue;
+		}
 
-        // 1. 살아있는지 확인 (간단히 액터 유효성만 체크하거나 HealthComponent 확인)
-        // (프로토타입 단계이므로 생략, 죽으면 Destroy되거나 Ragdoll이 됨을 가정)
+		// LyraCharacter만 대상으로 함
+		if (!Actor->IsA(ALyraCharacter::StaticClass()))
+		{
+			continue;
+		}
 
-        // 2. 적대 관계인지 확인
-        ELyraTeamComparison TeamRelationship = TeamSubsystem->CompareTeams(MyPawn, Actor);
-        if (TeamRelationship != ELyraTeamComparison::DifferentTeams)
-        {
-            continue; // 같은 팀이거나 중립이면 무시
-        }
+		// 1. 살아있는지 확인 (간단히 액터 유효성만 체크하거나 HealthComponent 확인)
+		// (프로토타입 단계이므로 생략, 죽으면 Destroy되거나 Ragdoll이 됨을 가정)
 
-        // 3. 거리 확인
-        float DistSq = FVector::DistSquared(MyPawn->GetActorLocation(), Actor->GetActorLocation());
-        if (DistSq < BestDistSq)
-        {
-            BestDistSq = DistSq;
-            BestTarget = Actor;
-        }
-    }
+		// 2. 적대 관계인지 확인
+		ELyraTeamComparison TeamRelationship = TeamSubsystem->CompareTeams(MyPawn, Actor);
+		if (TeamRelationship != ELyraTeamComparison::DifferentTeams)
+		{
+			continue; // 같은 팀이거나 중립이면 무시
+		}
 
+		// 3. 거리 확인 (더 가까운 적 찾기)
+		float DistSq = FVector::DistSquared(MyPawn->GetActorLocation(), Actor->GetActorLocation());
+		if (DistSq < BestDistSq)
+		{
+			BestDistSq = DistSq;
+			BestTarget = Actor;
+		}
+	}
+    
     if (BestTarget)
     {
         BlackboardComp->SetValueAsObject(BlackboardKey.SelectedKeyName, BestTarget);

@@ -138,18 +138,11 @@ TArray<FString> ATestPlayWeaponBlock::GetCollisionComponentNames() const
 	}
 #endif
 
-	// Remove duplicates and sort
-	Names.Sort();
-    // Unique implementation for FString array
-	for (int32 i = Names.Num() - 1; i > 0; --i)
-	{
-		if (Names[i] == Names[i - 1])
-		{
-			Names.RemoveAt(i);
-		}
-	}
-
-	return Names;
+	// TSet으로 중복 제거 및 정렬
+	TSet<FString> UniqueSet(Names);
+	TArray<FString> Result = UniqueSet.Array();
+	Result.Sort();
+	return Result;
 }
 
 ATestPlayWeaponBlock* ATestPlayWeaponBlock::FindWeaponBlock(AActor* OwnerActor)
