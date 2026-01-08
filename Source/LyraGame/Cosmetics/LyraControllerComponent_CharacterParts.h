@@ -50,7 +50,7 @@ public:
 
 // A component that configure what cosmetic actors to spawn for the owning controller when it possesses a pawn
 UCLASS(meta = (BlueprintSpawnableComponent))
-class ULyraControllerComponent_CharacterParts : public UControllerComponent
+class LYRAGAME_API ULyraControllerComponent_CharacterParts : public UControllerComponent
 {
 	GENERATED_BODY()
 
