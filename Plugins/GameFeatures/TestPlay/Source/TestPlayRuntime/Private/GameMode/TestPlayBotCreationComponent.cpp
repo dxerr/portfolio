@@ -11,6 +11,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Character/LyraHealthComponent.h"
 #include "NavigationSystem.h"
+#include "NavigationPath.h"
 #include "GameFramework/PlayerStart.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TestPlayBotCreationComponent)
@@ -95,6 +96,77 @@ FString UTestPlayBotCreationComponent::CreateBotName(int32 PlayerIndex)
 		Result = FString::Printf(TEXT("Bot %d"), PlayerIndex);
 	}
 	return Result;
+}
+
+FVector UTestPlayBotCreationComponent::GetReferenceLocationForValidation() const
+{
+	// 1순위: 첫 번째 플레이어 Pawn 위치
+	if (UWorld* World = GetWorld())
+	{
+		for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
+		{
+			if (APlayerController* PC = It->Get())
+			{
+				if (APawn* PlayerPawn = PC->GetPawn())
+				{
+					return PlayerPawn->GetActorLocation();
+				}
+			}
+		}
+	}
+
+	// 2순위: 첫 번째 PlayerStart 위치
+	TArray<AActor*> PlayerStarts;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), APlayerStart::StaticClass(), PlayerStarts);
+	if (PlayerStarts.Num() > 0)
+	{
+		return PlayerStarts[0]->GetActorLocation();
+	}
+
+	// 3순위: 맵 중심 (폴백)
+	return FVector::ZeroVector;
+}
+
+bool UTestPlayBotCreationComponent::IsLocationReachableFromReference(const FVector& TestLocation) const
+{
+	UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+	if (!NavSys)
+	{
+		// 네비게이션 시스템이 없으면 검증 스킵 (true 반환)
+		return true;
+	}
+
+	FVector ReferenceLocation = GetReferenceLocationForValidation();
+	
+	// 기준 위치가 유효하지 않으면 검증 스킵
+	if (ReferenceLocation.IsZero())
+	{
+		return true;
+	}
+
+	// 기준 위치를 NavMesh에 투영 (PlayerStart가 NavMesh에 정확히 위치하지 않을 수 있음)
+	FNavLocation ProjectedReference;
+	if (!NavSys->ProjectPointToNavigation(ReferenceLocation, ProjectedReference, FVector(500.f, 500.f, 500.f)))
+	{
+		// 기준 위치 자체가 NavMesh에 투영되지 않으면 검증 스킵
+		return true;
+	}
+
+	// 투영된 기준 위치에서 테스트 위치까지 경로 찾기
+	UNavigationPath* NavPath = NavSys->FindPathToLocationSynchronously(GetWorld(), ProjectedReference.Location, TestLocation);
+	
+	// 경로가 유효하면 OK (부분 경로라도 도달 가능성이 있으면 허용)
+	// IsPartial() 검사 제거 - 완전히 다른 NavMesh 영역일 때만 IsValid()가 false
+	if (NavPath && NavPath->IsValid())
+	{
+		// 추가 검증: 경로 길이가 0이면 (시작점과 끝점이 같은 영역에 없음) 거부
+		if (NavPath->GetPathLength() > 0.0f)
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 void UTestPlayBotCreationComponent::SpawnOneBot()
@@ -196,6 +268,12 @@ void UTestPlayBotCreationComponent::SpawnOneBot()
 
 						if (!bTooClose)
 						{
+							// 갇힌 공간 검증: 기준 위치로부터 도달 가능한지 확인
+							if (!IsLocationReachableFromReference(RandomLocation.Location))
+							{
+								continue; // 도달 불가능하면 재시도
+							}
+
 							bFoundValidLocation = true;
 							SpawnLocation = RandomLocation.Location;
 							break;

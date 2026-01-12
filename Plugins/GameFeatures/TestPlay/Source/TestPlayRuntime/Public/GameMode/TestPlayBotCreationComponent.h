@@ -52,6 +52,12 @@ protected:
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<AAIController>> SpawnedBotList;
 
+	/** 주어진 위치에서 기준 위치(PlayerStart 또는 플레이어)로 네비게이션 경로가 존재하는지 검증 */
+	bool IsLocationReachableFromReference(const FVector& TestLocation) const;
+
+	/** 유효한 기준 위치(PlayerStart 또는 첫 번째 플레이어 위치) 반환 */
+	FVector GetReferenceLocationForValidation() const;
+
 	/** Always creates a single bot */
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category=Gameplay)
 	virtual void SpawnOneBot();
