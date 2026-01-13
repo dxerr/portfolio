@@ -3,7 +3,7 @@
 Unreal Engine의 Lyra 샘플 프로젝트를 기반으로 GameFeature 시스템을 활용한 모듈형 게임플레이 데모입니다.  
 MetaHuman으로 제작한 캐릭터를 Mutable 시스템으로 최적화하고 커스터마이징이 가능하도록 구현했습니다.
 
-> **Note**: 본 리포지토리는 **소스코드 참고용**입니다. 콘텐츠 리소스(에셋, 텍스처, 모델 등)는 용량 문제로 포함되어 있지 않으며, 빌드 및 실행이 불가합니다.
+> **Note**: 본 리포지토리는 **소스코드 참고용** 및 **데모 시연용**입니다. 소스코드는 에셋이 제외되어 빌드가 불가능할 수 있으나, **Releases** 폴더의 압축 파일을 통해 데모를 **즉시 실행**해볼 수 있습니다.
 
 ---
 
@@ -12,11 +12,20 @@ MetaHuman으로 제작한 캐릭터를 Mutable 시스템으로 최적화하고 �
 | 영역 | 기술 |
 |:---|:---|
 | 아키텍처 | GameFeature 시스템 기반 모듈형 플러그인 설계 |
+| 게임플레이 | Gameplay Tag Event, GAS(Gameplay Ability System), Enhanced Input 활용 |
 | 네트워크 | Dedicated Server 지원 |
 | 캐릭터 | MetaHuman 제작 + Mutable 최적화/커스터마이징 |
 | 애니메이션 | Animation Retargeter를 통한 Lyra 애니메이션 연동 |
 | 전투 시스템 | 궤적 기반 Box Sweep 근접 판정 + 블록 처리 |
 | AI | Behavior Tree 기반 Bot 플레이어 |
+
+---
+
+## 실행 방법
+
+1. 리포지토리의 `Releases/Windows/LyraGame_Demo_Win64.zip` 파일을 다운로드합니다.
+2. 압축을 해제한 후 `LyraGame.exe` (또는 `LyraStarterGame.exe`)를 실행합니다.
+3. 데모 레벨에서 캐릭터를 조작하여 근접 전투 시스템을 체험할 수 있습니다.
 
 ---
 
@@ -34,6 +43,11 @@ MetaHuman으로 제작한 캐릭터를 Mutable 시스템으로 최적화하고 �
 ### 개발 환경
 - AI 에이전트(Antigravity, VS Code Copilot) 활용
 - Gemini, Claude, GPT 기반 프롬프트 엔지니어링
+
+### 진행 상황 (WIP)
+- 현재 근접 전투 시스템의 타격 및 피격 판정이 구현되어 있습니다.
+- 콤보 시스템 및 스킬 연계 기능은 지속적으로 고도화 중입니다.
+- AI 애니메이션 및 반응성 개선 작업이 진행 중입니다.
 
 ---
 
