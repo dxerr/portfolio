@@ -288,23 +288,7 @@
 			"Enabled": true
 		},
 		{
-			"Name": "ShooterMaps",
-			"Enabled": true
-		},
-		{
-			"Name": "TopDownArena",
-			"Enabled": true
-		},
-		{
 			"Name": "FunctionalTestingEditor",
-			"Enabled": true
-		},
-		{
-			"Name": "ShooterExplorer",
-			"Enabled": true
-		},
-		{
-			"Name": "ShooterTests",
 			"Enabled": true
 		},
 		{
@@ -382,6 +366,14 @@
 		{
 			"Name": "TestPlay",
 			"Enabled": true
+		},
+		{
+			"Name": "PythonScriptPlugin",
+			"Enabled": true
+		},
+		{
+			"Name": "RemoteControlAPI",
+			"Enabled": false
 		}
 	],
 	"EpicSampleNameHash": "451731683"

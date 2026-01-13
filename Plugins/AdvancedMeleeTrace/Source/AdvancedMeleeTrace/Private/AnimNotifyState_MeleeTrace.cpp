@@ -5,6 +5,7 @@
 #include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMeshSocket.h"
 #include "Engine/SkeletalMeshSocket.h"
+#include "GameFramework/Actor.h"
 
 // Helper to manage checking/creating components
 UAdvancedMeleeTraceComponent* GetOrSpawnTraceComponent(USkeletalMeshComponent* MeshComp, bool& bWasSpawned)
@@ -47,27 +48,65 @@ UAdvancedMeleeTraceComponent* GetOrSpawnTraceComponent(USkeletalMeshComponent* M
 	return TraceComp;
 }
 
-void UAnimNotifyState_MeleeTrace::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration, const FAnimNotifyEventReference& EventReference)
+#if WITH_EDITOR
+void UAnimNotifyState_MeleeTrace::EnsurePreviewWeaponSpawned(USkeletalMeshComponent* MeshComp)
 {
 	if (!MeshComp || !MeshComp->GetOwner()) return;
-
-#if WITH_EDITOR
-	// 1. Setup Preview Weapon Mesh (if needed) - Must be done BEFORE StartTrace so sockets exist
+	
 	UWorld* World = MeshComp->GetWorld();
-	if (World && World->IsPreviewWorld() && PreviewWeaponMesh && !WeaponAttachmentSocket.IsNone())
-	{
-		// Cleanup existing first
-		TArray<USceneComponent*> Children;
-		MeshComp->GetChildrenComponents(true, Children);
-		for (USceneComponent* Child : Children)
-		{
-			if (Child && Child->ComponentTags.Contains(TEXT("MeleeTracePreviewWeapon")))
-			{
-				Child->DestroyComponent();
-			}
-		}
+	if (!World || !World->IsPreviewWorld()) return;
+	if (WeaponAttachmentSocket.IsNone()) return;
+	
+	// 둘 다 없으면 리턴
+	if (!PreviewWeaponMesh && !PreviewWeaponActorClass) return;
 
-		USceneComponent* SpawnedComp = nullptr;
+	// 현재 소스 결정 (ActorClass 우선, 없으면 Mesh 사용)
+	UObject* CurrentSource = PreviewWeaponActorClass ? Cast<UObject>(PreviewWeaponActorClass) : PreviewWeaponMesh.Get();
+
+	// 캐시 유효성 검사: 에셋이나 소켓이 변경되었으면 기존 프리뷰 제거
+	bool bNeedsRespawn = false;
+	if (CachedPreviewSourceAsset.Get() != CurrentSource || CachedPreviewSocket != WeaponAttachmentSocket)
+	{
+		bNeedsRespawn = true;
+		// 기존 프리뷰 제거
+		if (CachedPreviewActor.IsValid())
+		{
+			CachedPreviewActor->Destroy();
+			CachedPreviewActor = nullptr;
+		}
+		if (CachedPreviewComponent.IsValid())
+		{
+			CachedPreviewComponent->DestroyComponent();
+			CachedPreviewComponent = nullptr;
+		}
+	}
+
+	// 이미 유효한 캐시가 있으면 스킵
+	if (!bNeedsRespawn && (CachedPreviewComponent.IsValid() || CachedPreviewActor.IsValid()))
+	{
+		return;
+	}
+
+	// 스폰 로직 시작
+	USceneComponent* SpawnedComp = nullptr;
+	AActor* SpawnedActor = nullptr;
+
+	// 1. Actor Class 우선 처리
+	if (PreviewWeaponActorClass)
+	{
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		SpawnParams.ObjectFlags = RF_Transient;
+		SpawnedActor = World->SpawnActor<AActor>(PreviewWeaponActorClass, FTransform::Identity, SpawnParams);
+		if (SpawnedActor)
+		{
+			SpawnedActor->Tags.Add(TEXT("MeleeTracePreviewActor"));
+			SpawnedActor->AttachToComponent(MeshComp, FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponAttachmentSocket);
+		}
+	}
+	// 2. Mesh 처리 (ActorClass가 없을 때만)
+	else if (PreviewWeaponMesh)
+	{
 		if (UStaticMesh* SM = Cast<UStaticMesh>(PreviewWeaponMesh))
 		{
 			UStaticMeshComponent* SMC = NewObject<UStaticMeshComponent>(MeshComp->GetOwner(), NAME_None, RF_Transient);
@@ -80,14 +119,34 @@ void UAnimNotifyState_MeleeTrace::NotifyBegin(USkeletalMeshComponent* MeshComp, 
 			SKMC->SetSkeletalMeshAsset(SKM);
 			SpawnedComp = SKMC;
 		}
-
-		if (SpawnedComp)
-		{
-			SpawnedComp->ComponentTags.Add(TEXT("MeleeTracePreviewWeapon"));
-			SpawnedComp->RegisterComponent();
-			SpawnedComp->AttachToComponent(MeshComp, FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponAttachmentSocket);
-		}
 	}
+
+	if (SpawnedComp)
+	{
+		SpawnedComp->ComponentTags.Add(TEXT("MeleeTracePreviewWeapon"));
+		SpawnedComp->RegisterComponent();
+		SpawnedComp->AttachToComponent(MeshComp, FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponAttachmentSocket);
+		CachedPreviewComponent = SpawnedComp;
+	}
+	
+	if (SpawnedActor)
+	{
+		CachedPreviewActor = SpawnedActor;
+	}
+	
+	// 캐시 정보 업데이트
+	CachedPreviewSourceAsset = CurrentSource;
+	CachedPreviewSocket = WeaponAttachmentSocket;
+}
+#endif
+
+void UAnimNotifyState_MeleeTrace::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration, const FAnimNotifyEventReference& EventReference)
+{
+	if (!MeshComp || !MeshComp->GetOwner()) return;
+
+#if WITH_EDITOR
+	// 1. Setup Preview Weapon Mesh (if needed) - Must be done BEFORE StartTrace so sockets exist
+	EnsurePreviewWeaponSpawned(MeshComp);
 #endif
 
 	// 2. Get or Spawn Component and Start Trace
@@ -95,13 +154,6 @@ void UAnimNotifyState_MeleeTrace::NotifyBegin(USkeletalMeshComponent* MeshComp, 
 	UAdvancedMeleeTraceComponent* TraceComp = GetOrSpawnTraceComponent(MeshComp, bSpawned);
 	if (TraceComp)
 	{
-		// Sync DebugDraw setting from Notify to Component
-#if WITH_EDITOR
-		if (World && World->IsPreviewWorld())
-		{
-			// Preview World logic if needed
-		}
-#endif
 		// Always apply debug draw setting from Notify
 		TraceComp->bDebugDraw = bDebugDraw;
 		TraceComp->StartTrace(TraceInfos);
@@ -112,20 +164,17 @@ void UAnimNotifyState_MeleeTrace::NotifyTick(USkeletalMeshComponent* MeshComp, U
 {
 	if (!MeshComp || !MeshComp->GetOwner()) return;
 
+#if WITH_EDITOR
+	// 프레임 스크러빙 대응: 프리뷰가 없으면 생성
+	EnsurePreviewWeaponSpawned(MeshComp);
+#endif
+
 	// Always use the component's logic. It handles previous frame locations correctly for smooth sweeps.
 	bool bSpawned = false;
 	UAdvancedMeleeTraceComponent* TraceComp = GetOrSpawnTraceComponent(MeshComp, bSpawned);
 	
 	if (TraceComp)
 	{
-		// Ensure DebugDraw matches (e.g. if toggled during playback)
-#if WITH_EDITOR
-		UWorld* World = MeshComp->GetWorld();
-		if (World && World->IsPreviewWorld())
-		{
-			// Preview specific logic
-		}
-#endif
 		// Always apply debug draw setting from Notify
 		TraceComp->bDebugDraw = bDebugDraw;
 		TraceComp->PerformTrace();
@@ -150,19 +199,6 @@ void UAnimNotifyState_MeleeTrace::NotifyEnd(USkeletalMeshComponent* MeshComp, UA
 #endif
 	}
 
-#if WITH_EDITOR
-	// Cleanup Preview Weapon Mesh
-	if (MeshComp->GetWorld() && MeshComp->GetWorld()->IsPreviewWorld())
-	{
-		TArray<USceneComponent*> Children;
-		MeshComp->GetChildrenComponents(true, Children);
-		for (USceneComponent* Child : Children)
-		{
-			if (Child && Child->ComponentTags.Contains(TEXT("MeleeTracePreviewWeapon")))
-			{
-				Child->DestroyComponent();
-			}
-		}
-	}
-#endif
+	// NOTE: 프리뷰 무기 메시는 캐싱하므로 NotifyEnd에서 제거하지 않음.
+	// 에셋이 변경되거나 애니메이션이 닫힐 때 GC가 처리함.
 }
