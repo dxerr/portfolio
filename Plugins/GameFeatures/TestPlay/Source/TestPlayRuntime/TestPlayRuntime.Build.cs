@@ -55,7 +55,9 @@ public class TestPlayRuntime : ModuleRules
 				"GameSubtitles",
 				"DeveloperSettings",
 				"AIModule",
-				"NavigationSystem"
+				"NavigationSystem",
+				"MutableRuntime",
+				"CustomizableObject"  // Mutable 파라미터 랜덤화용
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);
