@@ -1,28 +1,91 @@
-# Unreal Engine Python Bridge MCP
+# Unreal Engine Python Bridge MCP 시스템 문서
 
-이 문서는 AI 에이전트 및 개발자가 외부에서 실행 중인 언리얼 에디터(Unreal Editor)를 제어하기 위해 구축된 **Python Bridge MCP** 시스템에 대해 설명합니다.
+## 개요
+**Python Bridge**는 외부의 AI 에이전트나 도구가 실행 중인 언리얼 에디터(Unreal Editor)의 Python 환경에 직접 접근하여 코드를 실행할 수 있게 해주는 시스템입니다. 이를 통해 자동화 작업, 에셋 관리, 상태 쿼리 등을 자연어 명령으로 수행할 수 있습니다.
 
-## 1. 개요 (Overview)
-Python Bridge는 외부 프로세스(예: AI 에이전트, IDE, 스크립트)와 언리얼 에디터 내부의 Python VM 간의 통신 채널입니다. 이를 통해 에디터 프로세스 내부에서만 접근 가능한 `unreal` 모듈의 기능을 외부에서 호출할 수 있습니다.
+## 시스템 구성 요소
 
-### 아키텍처
-*   **서버 (Unreal Side)**: `Content/Python/init_unreal.py`
-    *   에디터 실행 시 자동 시작.
-    *   **TCP 9999** 포트에서 수신 대기.
-    *   요청을 받아 메인 스레드(Game Thread) 큐에 등록하고, `SlatePostTick`에서 안전하게 실행.
-*   **클라이언트 (External Side)**: `Tools/MCP/lyra_bridge_mcp.py`
-    *   JSON 형식의 명령을 TCP 소켓으로 전송.
-    *   `execute` (코드 실행) 및 `evaluate` (표현식 평가) 모드 지원.
+### 1. MCP Bridge Server (`lyra_bridge_mcp.py`)
+AI 에이전트와 직접 통신하는 MCP(Model Context Protocol) 서버입니다.
+*   **위치**: `Tools/MCP/lyra_bridge_mcp.py`
+*   **역할**:
+    *   MCP `execute_unreal_python` 도구 제공.
+    *   사용자의 Python 코드 요청을 JSON 패킷으로 포장.
+    *   TCP 소켓(Localhost:9999)을 통해 언리얼 에디터로 전송.
+    *   응답(Stdout/Stderr)을 받아 사용자에게 반환.
 
-## 2. 파일 위치
-*   **서버 스크립트**: `LyraStarterGame/Content/Python/init_unreal.py`
-*   **클라이언트 도구**: `LyraStarterGame/Tools/MCP/lyra_bridge_mcp.py`
+### 2. Unreal Internal Server (`init_unreal.py`)
+언리얼 에디터 내부에서 동작하는 TCP 수신 서버입니다.
+*   **위치**: `Content/Python/init_unreal.py`
+*   **역할**:
+    *   에디터 시작 시 포트 **9999** 바인딩.
+    *   백그라운드 스레드에서 요청 대기.
+    *   **Main Thread Queueing**: 받은 코드를 `SlatePostTick` 콜백 큐에 넣어, 메인 스레드(GameThread)에서 안전하게 실행되도록 보장.
+    *   실행 결과를 캡처하여 클라이언트로 반환.
 
-## 3. 사용 방법 (Usage)
+---
 
-### 3.1. 전제 조건
-*   **PythonScriptPlugin**이 프로젝트에서 활성화되어 있어야 합니다.
-*   언리얼 에디터가 실행 중이어야 합니다 (Output Log에 "Python Bridge Server initialized" 확인).
+## 사용법 (Available Tools)
+
+### `execute_unreal_python`
+언리얼 에디터 컨텍스트에서 임의의 Python 코드를 실행합니다.
+
+*   **Arguments**:
+    *   `code` (string): 실행할 유효한 Python 코드 블록. `unreal` 모듈은 이미 임포트되어 있습니다.
+*   **Returns**:
+    *   실행 결과(Stdout 출력값) 또는 에러 메시지.
+
+**예시 요청:**
+```python
+# 에디터의 모든 액터 개수 세기
+import unreal
+actors = unreal.EditorLevelLibrary.get_all_level_actors()
+print(f"Total Actors: {len(actors)}")
+```
+
+**예시 응답:**
+```text
+Total Actors: 42
+```
+
+---
+
+## 통신 프로토콜 (Internal)
+
+MCP 브리지와 언리얼 서버 간의 저수준 TCP 통신 포맷입니다.
+
+**Request (JSON):**
+```json
+{
+    "code": "print('Hello')"
+}
+```
+
+**Response (JSON):
+```json
+{
+    "status": "ok",   // 또는 "error"
+    "output": "Hello\n",
+    "error": ""       // 에러 발생 시 상세 메시지
+}
+```
+
+## 트러블슈팅
+
+### 1. "Connection Refused" 에러
+*   **원인**: 언리얼 에디터가 실행 중이 아니거나, `init_unreal.py`가 로드되지 않았습니다.
+*   **해결**:
+    *   에디터를 실행하세요.
+    *   Output Log에서 "Python Bridge Server listening..." 메시지가 있는지 확인하세요.
+    *   Port 9999가 방화벽이나 다른 프로세스에 의해 차단되지 않았는지 확인하세요.
+
+### 2. "Python was not found" 에러 (MCP 서버 실행 시)
+*   **원인**: 시스템 Python 경로 설정 문제.
+*   **해결**: `settings.json` 설정에서 `unreal-python-bridge`의 명령어를 언리얼 내장 Python 경로(`.../Binaries/ThirdParty/Python3/Win64/python.exe`)로 지정하세요.
+
+### 3. 언리얼 에디터 멈춤 (Freeze)
+*   **원인**: 실행한 Python 코드가 무한 루프에 빠지거나 너무 무거운 작업을 수행함.
+*   **주의**: 모든 코드는 에디터의 메인 스레드에서 실행되므로, 긴 작업은 에디터 UI를 멈추게 할 수 있습니다. 복잡한 작업은 짧게 나누어 실행하세요.
 
 ### 3.2. CLI 명령 예시
 프로젝트 루트에서 다음 명령어를 실행하여 사용합니다. (언리얼에 내장된 Python 인터프리터 사용 권장)
